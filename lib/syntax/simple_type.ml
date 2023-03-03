@@ -181,10 +181,9 @@ let verify_mgu prb =
     match eq with
     | (Var x, tp) ->
       if occurs x tp then
-        false else true
+        false
+      else
+        true
     | (_, _) -> false
-   in
-   List.for_all verify_eq prb
-
-(* let ty_infer (inv : 'exp -> unifPrb) exp =
-  let sol = snd (inv exp) *)
+  in
+    List.for_all verify_eq prb

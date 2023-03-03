@@ -38,7 +38,6 @@ open Syntax.Term
 
 let zero = FSym.register "zero"
 
-
 let () = FnCtx.weaken zero ty
 
 let ty_of_zero = FnCtx.type_of zero
