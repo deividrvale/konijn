@@ -1,0 +1,4 @@
+(library
+ (name syntax)
+ (public_name konijn.syntax)
+ (libraries utils interfaces))

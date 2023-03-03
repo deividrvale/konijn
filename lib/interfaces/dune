@@ -1,0 +1,4 @@
+(library
+ (name interfaces)
+ (public_name konijn.interfaces)
+ (libraries ))
