@@ -10,6 +10,6 @@ module type TY_CTX = sig
 
   val remove : exp -> unit
 
-  val type_of : exp -> t option
+  val type_of : exp -> t
 
 end

@@ -1,48 +1,48 @@
-open Interfaces.Name
 open Syntax.Simple_type
-
-module V = IndexedNames ()
-
-let _ = V.gen_name ()
-
-let _ = V.register "teste"
-
-let _ = V.register "teste"
-
-let _ = V.gen_name ()
-
+open Syntax.Term
+(* Declare some sorts *)
 let nat = base_mk "nat"
 let list = base_mk "list"
 
-let ty_var = Var 1
-
-let ty' = arr_mk (Var 1) (Var 2)
-
-let ty = arr_mk nat (Var 1)
-
-let s = (subst_from_list [(1, ty'); (2, ty')])
-
-let () =
-  Utils.Lists.print_list BaseTy.to_string (BaseTy.name_list ());
-  print_endline (ty_to_string ty');
-  print_endline (ty_to_string (apply ty' s))
-
-let uprob = ([(ty, ty')], [])
-
-let sol = unify uprob
-
-let () =
-  print_endline (unifPrb_to_string sol)
-
-open Syntax.Term
-
 let zero = FSym.register "zero"
+let x = VSym.register "x"
+let y = VSym.register "y"
 
-let () = FnCtx.weaken zero ty
+(* let () = VarCtx.weaken y nat *)
 
-let ty_of_zero = FnCtx.type_of zero
+let f_s = FSym.register "f"
+
+let _ = FnCtx.weaken f_s (ST.arr_mk nat nat)
+
+let f =
+  app_mk
+  (fn_mk f_s)
+  (app_mk
+    (lam_mk x (Var x))
+    (Var x)
+  )
+
+let () = FnCtx.weaken (FSym.get_name "f") (arr_mk nat nat)
+
+let abst = lam_mk x (lam_mk y (app_mk (var_mk x) (
+  lam_mk x (Var (VSym.register "z"))
+)))
+
+let sub = subst_from_list [(VSym.register "z", f)]
+
+let abst_b = to_barendregt_conv abst
+let () =
+  is_barendregt abst |> Bool.to_string |> print_endline;
+  print_endline (tm_to_string abst);
+  tm_to_string abst_b |> print_endline;
+  tm_to_string (apply abst sub) |> print_endline;
+
+  (*
+let ty_unif_pair = gen_ty_eq abst
+
+let infered_ty = ty_infer gen_ty_eq abst
 
 let () =
-  match ty_of_zero with
-  | None -> ()
-  | Some t -> print_endline (ty_to_string t)
+  print_endline (ty_to_string (ty_unif_pair |> fst));
+  print_endline (unifPrb_to_string ([],ty_unif_pair |> snd));
+  print_endline (ty_to_string infered_ty) *)

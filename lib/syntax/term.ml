@@ -1,4 +1,5 @@
 open Simple_type
+module ST = Simple_type
 
 (*-----------------------------------------------------------------------------
   Function Symbols
@@ -29,6 +30,11 @@ type term =
   | Lam of var * term
   | App of term * term
 
+let var_mk x = Var x
+let fn_mk f = Fun f
+let app_mk l r = App(l,r)
+let lam_mk x t = Lam(x,t)
+
 let free_var t =
   let rec fvar_acc = (fun t acc ->
     match t with
@@ -39,6 +45,10 @@ let free_var t =
     | Lam (v, t') -> Utils.Lists.remove VSym.equal v (fvar_acc t' acc)
     )
   in Utils.Lists.remove_duplicates VSym.equal (fvar_acc t [])
+
+let is_free x t =
+  let fvars = free_var t in
+  Utils.Lists.member VSym.equal x fvars
 
 (* to_string *)
 let rec tm_to_string' (b : bool) (t : term) =
@@ -63,6 +73,103 @@ and print_lambda = function
   | e -> print_app e
 
 let tm_to_string = tm_to_string' true
+
+(*-----------------------------------------------------------------------------
+  Renaming and Barendregt Conditions
+-----------------------------------------------------------------------------*)
+
+let rec rename t v v' =
+  match t with
+  | Fun f -> Fun f
+  | Var x ->
+    if VSym.equal x v then Var v' else Var x
+  | Lam (x,t') ->
+    if VSym.equal x v then Lam (x,t')
+      else Lam (x, rename t' v v')
+  | App(m,n) -> App (rename m v v', rename n v v')
+
+let is_barendregt t =
+  let rec biding_var = function
+    | Lam (x, s') -> [x] @ biding_var s'
+    | Fun _ -> []
+    | Var _ -> []
+    | App (m,n) -> (biding_var m) @ (biding_var n) in
+  let bv  = biding_var t in
+  let bv' = Utils.Lists.remove_duplicates VSym.equal bv in
+  Int.equal (List.length bv) (List.length bv')
+
+let rename_fvar_to_fresh s v =
+  let fresh_var = VSym.gen_name () in
+  rename s v fresh_var
+
+let rec to_barendregt_conv s =
+  if is_barendregt s then s else
+    begin
+      match s with
+      | Fun f -> Fun f
+      | Var x -> Var x
+      | Lam (x,t') -> let fresh_var = VSym.gen_name () in
+        Lam (fresh_var, to_barendregt_conv (rename t' x fresh_var))
+      | App (m,n) ->
+        App (to_barendregt_conv m, to_barendregt_conv n)
+    end
+
+(*-----------------------------------------------------------------------------
+  Substitution over terms
+-----------------------------------------------------------------------------*)
+module TSubst = Map.Make(VSym)
+type subst = term TSubst.t
+
+let is_closed t =
+  not (List.length (free_var t) > 0)
+
+let rec subst_from_list (l : (var * term) list) : subst =
+  match l with
+  | [] -> TSubst.empty
+  | (v, t) :: tl ->
+    TSubst.add v t (subst_from_list tl)
+
+let rec apply tm subst =
+  if is_closed tm then tm
+  else begin
+    match tm with
+    | Fun f -> Fun f
+    | (Var x) as v -> (
+        match TSubst.find_opt x subst with
+        | None -> v
+        | Some t -> t
+      )
+    | App (m,n) -> App (apply m subst, apply n subst)
+    | Lam(x,t) ->
+      let occurs = TSubst.filter (fun _ t -> is_free x t) subst in
+      match TSubst.min_binding_opt occurs with
+      | None ->
+        Lam (x, apply t subst)
+      | Some _ ->
+        let fresh_var = VSym.gen_name () in
+        let t' = rename t x fresh_var in
+        Lam (fresh_var, apply t' subst)
+  end
+
+(*-----------------------------------------------------------------------------
+  Typing
+-----------------------------------------------------------------------------*)
+
+(* Rename all bound variables to different names. *)
+let rec gen_ty_eq = function
+  | Fun f -> (FnCtx.type_of  f, [])
+  | Var x -> (VarCtx.type_of x, [])
+  | App (m,n) ->
+      let (tpM, eqM) = gen_ty_eq m in
+      let (tpN, eqN) = gen_ty_eq n in
+      let fresh_ty = ST.fresh_ty () in
+      let eqApp = eqM @ eqN @ [(tpM, (ST.arr_mk tpN fresh_ty))] in
+        (fresh_ty, eqApp)
+  | Lam (x, m) ->
+      let fresh_ty = ST.fresh_ty () in
+      VarCtx.weaken x fresh_ty;
+      let (tpM, eqM) = gen_ty_eq m in
+        (ST.arr_mk fresh_ty tpM, eqM)
 
 (*-----------------------------------------------------------------------------
     de Bruijn Terms

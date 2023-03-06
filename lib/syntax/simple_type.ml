@@ -1,7 +1,7 @@
+open Interfaces
 (*-----------------------------------------------------------------------------
   Type Contexts, Simple Types
 -----------------------------------------------------------------------------*)
-open Interfaces
 
 (* Base Type Names *)
 module BaseTy = Interfaces.Name.IndexedNames ()
@@ -10,6 +10,10 @@ type base = BaseTy.t
 module IntSet = Set.Make(Int)
 
 type ty = Var of int | Base of base | Arr of ty * ty
+
+(* A counter to keep track of freshly generated type
+   variable names. *)
+let ty_var_counter = ref 0
 
 (*-----------------------------------------------------------------------------
   Instantiaiton of Context Interfacing
@@ -30,7 +34,12 @@ module TyCtx (EXP : Base_modules.TOT) =
       Hashtbl.remove ctx exp
 
     let type_of exp =
-      Hashtbl.find_opt ctx exp
+      match Hashtbl.find_opt ctx exp with
+      | None ->
+        raise (Not_found_in_Ctx
+        ("Cannot recover type of unbound symbol "
+        ^ EXP.to_string exp))
+      | Some t -> t
 end
 
 (*-----------------------------------------------------------------------------
@@ -70,12 +79,16 @@ let is_var = function
 let rec ty_to_string ty =
   match ty with
   | Base b -> BaseTy.to_string b
-  | Var i -> Int.to_string i
+  | Var i -> "A" ^ Int.to_string i
   | Arr (a,b) ->
     if (is_base a) || (is_var a) then
       (ty_to_string a) ^ " ⟶ " ^ (ty_to_string b)
     else
-      "(" ^ (ty_to_string a) ^ ")" ^ " ⟶ " ^ (ty_to_string b)
+      "(" ^ (ty_to_string a) ^ ")" ^ " -> " ^ (ty_to_string b)
+
+let fresh_ty () =
+  ty_var_counter := !ty_var_counter + 1;
+  Var !ty_var_counter
 
 (*-----------------------------------------------------------------------------
   Substitution over types
@@ -133,8 +146,14 @@ let rec unify ((prb, sol) : unifPrb) : unifPrb =
   (* Test for failure cases. *)
   | ((Base _) as s , ((Arr _) as t)) :: _ ->
     raise(TyUnifError
-    (String.concat " "
-    ["Cannot unify type"; (ty_to_string s); "with"; (ty_to_string t)]))
+      (String.concat " "
+        ["Cannot unify base type";
+          (ty_to_string s);
+            "with functional type";
+          (ty_to_string t)
+        ]
+      )
+    )
   | ((Arr _) as s , ((Base _) as t)) :: _ ->
       raise(TyUnifError
       (String.concat " "
@@ -170,7 +189,12 @@ and varElim ((prb, sol) : unifPrb) : unifPrb =
   (* Equation between a variable and a type. *)
   | ((Var x, t) as eq) :: tl ->
     if occurs x t then
-      raise (TyUnifError ("Occur clash!"))
+      raise (TyUnifError
+        ("Type Infererence fatal error:
+        Occur clash! Cannot unifty type variable " ^
+        ty_to_string (Var x) ^
+        " with type " ^ ty_to_string t)
+      )
     else let sigma = IntMap.singleton x t in
       let (p,s) = (inst_eq_list tl sigma, eq :: (inst_eq_list sol sigma)) in
       unify (p,s)
@@ -187,3 +211,16 @@ let verify_mgu prb =
     | (_, _) -> false
   in
     List.for_all verify_eq prb
+
+let mgu_to_subst mgu =
+  let rec erase_var_construct lst =
+    match lst with
+    | [] -> []
+    | (Var x, tp) :: tl -> (x, tp) :: erase_var_construct tl
+    | _ -> raise (TyUnifError ("MGU Not Valid!"))
+  in subst_from_list (erase_var_construct mgu)
+
+let ty_infer (gen_ty_eq : 'exp -> ty * tyEq list) (exp : 'exp) =
+  let (tp, ty_eq) = gen_ty_eq exp in
+  let mgu = mgu_to_subst ((unify (ty_eq, [])) |> snd) in
+  apply tp mgu

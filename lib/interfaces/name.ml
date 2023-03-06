@@ -20,6 +20,11 @@ module type NAME = sig
       If [x] is already registered, no new name is saved and [register x]
       returns the old name. *)
 
+  (* val remove : t -> unit
+  (** [register x] registers the name [x] and return it as [t].
+      If [x] is already registered, no new name is saved and [register x]
+      returns the old name. *) *)
+
   (* val register_unit : string -> unit
   (** [register x] registers the name [x] and does not return it,
       for performance reasons. *) *)
@@ -102,7 +107,7 @@ module IndexedNames () : NAME = struct
       get_name new_name
 
   let rec gen_name' i =
-    let generated_name = "gN_" ^ (Int.to_string i) in
+    let generated_name = "a" ^ (Int.to_string i) in
     match get_name_opt generated_name with
     | None ->
       register generated_name
@@ -116,7 +121,6 @@ module IndexedNames () : NAME = struct
   let to_string name = List.nth !names (!names_size -1 -name)
 
   let name_list _ = List.init !names_size Fun.id
-
 end
 
 module _ : Set.OrderedType = IndexedNames ()
