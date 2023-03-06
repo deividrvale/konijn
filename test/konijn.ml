@@ -1,6 +1,6 @@
-open Syntax.Simple_type
+(* open Syntax.Simple_type
 open Syntax.Term
-(* Declare some sorts *)
+
 let nat = base_mk "nat"
 let list = base_mk "list"
 
@@ -22,7 +22,7 @@ let f =
     (Var x)
   )
 
-let () = FnCtx.weaken (FSym.get_name "f") (arr_mk nat nat)
+let () = FnCtx.weaken (FSym.of_string "f") (arr_mk nat nat)
 
 let abst = lam_mk x (lam_mk y (app_mk (var_mk x) (
   lam_mk x (Var (VSym.register "z"))
@@ -35,14 +35,14 @@ let () =
   is_barendregt abst |> Bool.to_string |> print_endline;
   print_endline (tm_to_string abst);
   tm_to_string abst_b |> print_endline;
-  tm_to_string (apply abst sub) |> print_endline;
+  tm_to_string (apply abst sub) |> print_endline; *)
 
-  (*
-let ty_unif_pair = gen_ty_eq abst
+open Syntax
+open Syntax.Term
+let f = FnSym.register "a"
+let x = VarSym.register "x"
 
-let infered_ty = ty_infer gen_ty_eq abst
+let lhs = fn_mk f
+let rhs = var_mk x
 
-let () =
-  print_endline (ty_to_string (ty_unif_pair |> fst));
-  print_endline (unifPrb_to_string ([],ty_unif_pair |> snd));
-  print_endline (ty_to_string infered_ty) *)
+let rule = Rules.rule_mk lhs rhs

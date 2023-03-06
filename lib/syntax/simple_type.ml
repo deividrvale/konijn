@@ -1,10 +1,11 @@
 open Interfaces
+
 (*-----------------------------------------------------------------------------
   Type Contexts, Simple Types
 -----------------------------------------------------------------------------*)
 
 (* Base Type Names *)
-module BaseTy = Interfaces.Name.IndexedNames ()
+module BaseTy = Name.IndexedNames ()
 type base = BaseTy.t
 
 module IntSet = Set.Make(Int)
