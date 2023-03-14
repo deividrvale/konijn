@@ -29,7 +29,9 @@
   (dune
    (>= 3.6.2))
   (menhir
-   (>= 20220210)))
+   (>= 20220210))
+  (z3
+    (>= 4.11.2)))
  (tags
   (topics
    "termination analysis"

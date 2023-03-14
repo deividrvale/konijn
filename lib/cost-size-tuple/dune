@@ -1,0 +1,4 @@
+(library
+ (name tuple)
+ (public_name konijn.tuple)
+ (libraries zarith syntax interfaces utils))
